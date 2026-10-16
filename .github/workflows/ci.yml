@@ -1,0 +1,28 @@
+name: C++ Kernel CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  correctness-and-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile with optimizations and OpenMP
+        run: g++ -O3 -std=c++17 -fopenmp -Wall -Wextra cpp/kernels.cpp -o kernels
+      - name: Verify numerical correctness and collect benchmark
+        run: |
+          mkdir -p results
+          ./kernels 128 256 128 32 7 4 | tee results/ci_benchmark.csv
+      - name: Validate CSV benchmark schema and accuracy
+        run: python3 benchmarks/verify.py results/ci_benchmark.csv
+      - name: Upload performance measurements
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpp-kernel-benchmark
+          path: results/ci_benchmark.csv
+          retention-days: 30
